@@ -550,13 +550,6 @@ async def adjust_elo(
         f"Adjusted by: {interaction.user.mention}"
     )
 
-
-@bot.tree.command(name="addelo", description="Staff: add ELO to a player.")
-@app_commands.describe(
-    player="Player receiving ELO",
-    mode="Tournament mode",
-    amount="Amount of ELO to add",
-    reason="Reason for the adjustment",
 )
 @app_commands.choices(mode=ELO_MODE_CHOICES)
 async def addelo_command(
