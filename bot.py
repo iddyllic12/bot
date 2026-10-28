@@ -162,7 +162,7 @@ def user_mention(user_id: int) -> str:
 
 
 class EloBot(commands.Bot):
-async def setup_hook(self):
+    async def setup_hook(self):
     guild_id = os.getenv("GUILD_ID")
 
     if guild_id:
