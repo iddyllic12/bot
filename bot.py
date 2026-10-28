@@ -52,6 +52,17 @@ def initialize_db():
                 PRIMARY KEY (guild_id, user_id, mode)
             )
         """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS player_platforms (
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                platform TEXT NOT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        """)
+
+        
         conn.execute("""
             CREATE TABLE IF NOT EXISTS matches (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,6 +176,26 @@ class EloBot(commands.Bot):
 
 intents = discord.Intents.default()
 bot = EloBot(command_prefix="!", intents=intents)
+@bot.tree.command(
+    name="setplatform",
+    description="Set your gaming platform."
+)
+@app_commands.describe(platform="Choose your gaming platform")
+@app_commands.choices(platform=[
+    app_commands.Choice(name="Console", value="Console"),
+    app_commands.Choice(name="PC", value="PC"),
+    app_commands.Choice(name="Mobile", value="Mobile"),
+])
+async def setplatform_command(
+    interaction: discord.Interaction,
+    platform: app_commands.Choice[str],
+):
+    if not interaction.guild:
+        await interaction.response.send_message(
+            "Use this command in your server.",
+            ephemeral=True,
+        )
+        return
 
 
 @bot.event
