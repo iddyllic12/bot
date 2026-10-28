@@ -550,7 +550,7 @@ async def adjust_elo(
         f"Adjusted by: {interaction.user.mention}"
     )
 
-)
+
 @app_commands.choices(mode=ELO_MODE_CHOICES)
 async def addelo_command(
     interaction: discord.Interaction,
