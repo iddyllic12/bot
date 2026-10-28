@@ -550,12 +550,7 @@ async def adjust_elo(
     )
 
 
-@bot.tree.command(name="addelo", description="Staff: add ELO to a player.")
-@app_commands.describe(
-    player="Player receiving ELO",
-    mode="Tournament mode",
-    amount="Amount of ELO to add",
-    reason="Reason for the adjustment",
+
 )
 @app_commands.choices(mode=ELO_MODE_CHOICES)
 async def addelo_command(
@@ -570,12 +565,7 @@ async def addelo_command(
     )
 
 
-@bot.tree.command(name="removeelo", description="Staff: remove ELO from a player.")
-@app_commands.describe(
-    player="Player losing ELO",
-    mode="Tournament mode",
-    amount="Amount of ELO to remove",
-    reason="Reason for the adjustment",
+
 )
 @app_commands.choices(mode=ELO_MODE_CHOICES)
 async def removeelo_command(
