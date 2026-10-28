@@ -176,6 +176,7 @@ class EloBot(commands.Bot):
 
 intents = discord.Intents.default()
 bot = EloBot(command_prefix="!", intents=intents)
+
 @bot.tree.command(
     name="setplatform",
     description="Set your gaming platform."
@@ -196,6 +197,44 @@ async def setplatform_command(
             ephemeral=True,
         )
         return
+
+    try:
+        with connect_db() as conn:
+            conn.execute(
+                """
+                INSERT INTO player_platforms (guild_id, user_id, platform)
+                VALUES (?, ?, ?)
+                ON CONFLICT(guild_id, user_id)
+                DO UPDATE SET platform=excluded.platform
+                """,
+                (interaction.guild.id, interaction.user.id, platform.value),
+            )
+
+        emojis = {
+            "Console": "🎮",
+            "PC": "💻",
+            "Mobile": "📱",
+        }
+
+        await interaction.response.send_message(
+            f"꒰ა・Your platform is now "
+            f"{emojis[platform.value]} **{platform.value}**!",
+            ephemeral=True,
+        )
+
+    except Exception as e:
+        print(f"setplatform error: {e}")
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "Couldn't save your platform. Check the bot console.",
+                ephemeral=True,
+            )
+
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user} (ID: {bot.user.id)}")
+
 
 
 @bot.event
