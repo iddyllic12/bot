@@ -162,16 +162,21 @@ def user_mention(user_id: int) -> str:
 
 
 class EloBot(commands.Bot):
-    async def setup_hook(self):
-        initialize_db()
-        if GUILD_ID:
-            guild = discord.Object(id=GUILD_ID)
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-            print(f"Synced slash commands to test/server guild {GUILD_ID}.")
-        else:
-            await self.tree.sync()
-            print("Synced global slash commands. They can take longer to appear.")
+   async def setup_hook(self):
+    guild_id = os.getenv("GUILD_ID")
+
+    if guild_id:
+        guild = discord.Object(id=int(guild_id))
+
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
+
+        self.tree.clear_commands(guild=None)
+        await self.tree.sync()
+
+        print(f"Synced commands to guild {guild_id} and cleared global commands.")
+    else:
+        await self.tree.sync()
 
 
 intents = discord.Intents.default()
