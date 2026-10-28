@@ -162,21 +162,25 @@ def user_mention(user_id: int) -> str:
 
 
 class EloBot(commands.Bot):
-   async def setup_hook(self):
+async def setup_hook(self):
     guild_id = os.getenv("GUILD_ID")
 
     if guild_id:
         guild = discord.Object(id=int(guild_id))
 
-        self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
-
+        # Remove old global commands from Discord
         self.tree.clear_commands(guild=None)
         await self.tree.sync()
 
-        print(f"Synced commands to guild {guild_id} and cleared global commands.")
+        # Sync the current commands to your server
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
+
+        print(f"Synced commands to server {guild_id}")
     else:
         await self.tree.sync()
+        print("Synced global commands")
+
 
 
 intents = discord.Intents.default()
