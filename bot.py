@@ -66,6 +66,10 @@ def initialize_db():
             )
         """)
 
+
+
+
+
    conn.execute("""
             CREATE TABLE IF NOT EXISTS elo_adjustments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
