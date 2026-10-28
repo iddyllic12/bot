@@ -16,6 +16,7 @@ from discord.ext import commands
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("GUILD_ID", "0") or "0")
+print(f"DEBUG GUILD_ID: {GUILD_ID}")
 STAFF_ROLE_ID = int(os.getenv("STAFF_ROLE_ID", "0") or "0")
 DB_PATH = os.getenv("DB_PATH", "./data/elo.sqlite3")
 
