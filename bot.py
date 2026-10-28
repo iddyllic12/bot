@@ -70,7 +70,7 @@ def initialize_db():
 
 
 
-   conn.execute("""
+          conn.execute("""
             CREATE TABLE IF NOT EXISTS elo_adjustments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 guild_id INTEGER NOT NULL,
