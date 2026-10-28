@@ -287,36 +287,81 @@ async def elo_command(
     )
 
 
-@bot.tree.command(name="leaderboard", description="Show the top ELO players for a mode.")
-@app_commands.describe(mode="Which tournament mode to view")
+
+@bot.tree.command(
+    name="leaderboard",
+    description="View the top 10 players by mode and platform."
+)
+@app_commands.describe(
+    mode="Choose the game mode",
+    platform="Filter by platform"
+)
 @app_commands.choices(mode=[
     app_commands.Choice(name="1v1", value="1v1"),
     app_commands.Choice(name="2v2", value="2v2"),
     app_commands.Choice(name="3v3", value="3v3"),
 ])
-async def leaderboard_command(interaction: discord.Interaction, mode: app_commands.Choice[str]):
+@app_commands.choices(platform=[
+    app_commands.Choice(name="All Platforms", value="All"),
+    app_commands.Choice(name="Console", value="Console"),
+    app_commands.Choice(name="PC", value="PC"),
+    app_commands.Choice(name="Mobile", value="Mobile"),
+])
+async def leaderboard_command(
+    interaction: discord.Interaction,
+    mode: app_commands.Choice[str],
+    platform: app_commands.Choice[str],
+):
     if not interaction.guild:
-        await interaction.response.send_message("Use this command in your server.", ephemeral=True)
+        await interaction.response.send_message(
+            "Use this command in your server.",
+            ephemeral=True,
+        )
         return
 
     with connect_db() as conn:
-        rows = conn.execute(
-            """SELECT user_id, elo, wins, losses, matches
-               FROM ratings
-               WHERE guild_id=? AND mode=? AND matches > 0
-               ORDER BY elo DESC, wins DESC, matches ASC
-               LIMIT 10""",
-            (interaction.guild.id, mode.value),
-        ).fetchall()
+        if platform.value == "All":
+            rows = conn.execute(
+                """
+                SELECT user_id, elo, wins, losses, matches
+                FROM ratings
+                WHERE guild_id=? AND mode=? AND matches > 0
+                ORDER BY elo DESC, wins DESC, matches ASC
+                LIMIT 10
+                """,
+                (interaction.guild.id, mode.value),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT r.user_id, r.elo, r.wins, r.losses, r.matches
+                FROM ratings AS r
+                JOIN player_platforms AS p
+                  ON r.guild_id = p.guild_id
+                 AND r.user_id = p.user_id
+                WHERE r.guild_id=?
+                  AND r.mode=?
+                  AND r.matches > 0
+                  AND p.platform=?
+                ORDER BY r.elo DESC, r.wins DESC, r.matches ASC
+                LIMIT 10
+                """,
+                (interaction.guild.id, mode.value, platform.value),
+            ).fetchall()
+
+    title = f"ARSENAL ANGELS — {mode.value} LEADERBOARD"
+    if platform.value != "All":
+        title += f" ({platform.value})"
 
     if not rows:
         await interaction.response.send_message(
-            f"꒰ა・**{mode.value} LEADERBOARD**\nNo rated matches have been recorded yet."
+            f"꒰ა・**{title}**\nNo rated players found for this selection."
         )
         return
 
     medals = ["🥇", "🥈", "🥉"]
     lines = []
+
     for i, row in enumerate(rows, start=1):
         marker = medals[i - 1] if i <= 3 else f"`#{i}`"
         lines.append(
@@ -325,8 +370,9 @@ async def leaderboard_command(interaction: discord.Interaction, mode: app_comman
         )
 
     await interaction.response.send_message(
-        f"꒰ა・**ARSENAL ANGELS — {mode.value} LEADERBOARD**\n\n" + "\n".join(lines)
+        f"꒰ა・**{title}**\n\n" + "\n".join(lines)
     )
+
 
 
 @bot.tree.command(name="reportmatch", description="Staff: record a completed tournament match.")
@@ -676,21 +722,26 @@ async def removeelo_command(
 ):
     await adjust_elo(interaction, player, mode, amount, reason, -1)
 
+
 @bot.tree.command(name="elohelp", description="Show how the Arsenal Angels ELO bot works.")
 async def elohelp_command(interaction: discord.Interaction):
     await interaction.response.send_message(
-       "꒰ა・**ARSENAL ANGELS ELO COMMANDS**\n"
+        "꒰ა・**ARSENAL ANGELS ELO COMMANDS**\n"
         "• `/elo` — check your rating or another player's rating\n"
-        "• `/leaderboard` — view the top 10 for a mode\n"
+        "• `/leaderboard` — view the top 10 by game mode and platform\n"
+        "• `/setplatform` — set your platform to Console, PC, or Mobile\n"
         "• `/matchhistory` — view recent recorded matches\n"
         "• `/reportmatch` — staff-only match reporting\n"
         "• `/undomatch` — staff-only correction for a reported match\n"
         "• `/addelo` — staff-only manual ELO increase\n"
         "• `/removeelo` — staff-only manual ELO decrease\n\n"
         "**Modes:** 1v1, 2v2, and 3v3 each have separate ratings.\n"
+        "**Platforms:** Console, PC, and Mobile.\n"
         f"**Starting ELO:** {STARTING_ELO} | **K-factor:** {K_FACTOR}\n"
-        "Team matches use each team's average ELO. Match reports should be checked before submission."
+        "Team matches use each team's average ELO. Match reports should be checked before submission.",
+        ephemeral=False,
     )
+
 
 
 if not TOKEN:
