@@ -590,15 +590,16 @@ async def removeelo_command(
     )
 
 @bot.tree.command(name="elohelp", description="Show how the Arsenal Angels ELO bot works.")
-async def elohelp_command(        "• `/addelo` — staff-only manual ELO increase\n"
-        "• `/removeelo` — staff-only manual ELO decrease\n"):
+async def elohelp_command(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "꒰ა・**ARSENAL ANGELS ELO COMMANDS**\n"
+       "꒰ა・**ARSENAL ANGELS ELO COMMANDS**\n"
         "• `/elo` — check your rating or another player's rating\n"
         "• `/leaderboard` — view the top 10 for a mode\n"
         "• `/matchhistory` — view recent recorded matches\n"
         "• `/reportmatch` — staff-only match reporting\n"
-        "• `/undomatch` — staff-only correction for a reported match\n\n"
+        "• `/undomatch` — staff-only correction for a reported match\n"
+        "• `/addelo` — staff-only manual ELO increase\n"
+        "• `/removeelo` — staff-only manual ELO decrease\n\n"
         "**Modes:** 1v1, 2v2, and 3v3 each have separate ratings.\n"
         f"**Starting ELO:** {STARTING_ELO} | **K-factor:** {K_FACTOR}\n"
         "Team matches use each team's average ELO. Match reports should be checked before submission."
