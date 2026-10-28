@@ -220,7 +220,7 @@ async def elo_command(
         return
 
     target = player or interaction.user
-        with connect_db() as conn:
+          with connect_db() as conn:
         row = get_rating(conn, interaction.guild.id, target.id, mode.value)
         platform_row = conn.execute(
             """
