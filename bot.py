@@ -380,6 +380,7 @@ async def leaderboard_command(
 
 
 
+
 @bot.tree.command(name="reportmatch", description="Staff: record a completed tournament match.")
 @app_commands.describe(
     mode="Tournament mode",
@@ -390,6 +391,7 @@ async def leaderboard_command(
     blue2="Blue team player 2 (required for 2v2/3v3)",
     red3="Red team player 3 (required for 3v3)",
     blue3="Blue team player 3 (required for 3v3)",
+    screenshot="Optional screenshot proving the match result",
 )
 @app_commands.choices(
     mode=[
@@ -412,11 +414,20 @@ async def reportmatch_command(
     blue2: Optional[discord.Member] = None,
     red3: Optional[discord.Member] = None,
     blue3: Optional[discord.Member] = None,
+    screenshot: Optional[discord.Attachment] = None,
 ):
     if not await staff_check(interaction):
         return
     if not interaction.guild:
-        await interaction.response.send_message("Use this command in your server.", ephemeral=True)
+        await interaction.response.send_message(
+            "Use this command in your server.", ephemeral=True
+        )
+        return
+
+    if screenshot and not (screenshot.content_type or "").startswith("image/"):
+        await interaction.response.send_message(
+            "Please upload an image file for the screenshot.", ephemeral=True
+        )
         return
 
     required_per_team = MODES[mode.value]
@@ -430,10 +441,10 @@ async def reportmatch_command(
         )
         return
 
-    # Drop unused optional slots for the chosen mode.
     red_team = [m for m in red_team if m is not None]
     blue_team = [m for m in blue_team if m is not None]
     all_ids = [m.id for m in red_team + blue_team]
+
     if len(set(all_ids)) != len(all_ids):
         await interaction.response.send_message(
             "Each player must be unique in the match. A player cannot be on both teams or occupy two slots.",
@@ -442,7 +453,9 @@ async def reportmatch_command(
         return
 
     if any(member.bot for member in red_team + blue_team):
-        await interaction.response.send_message("Bots cannot be entered as tournament players.", ephemeral=True)
+        await interaction.response.send_message(
+            "Bots cannot be entered as tournament players.", ephemeral=True
+        )
         return
 
     guild_id = interaction.guild.id
@@ -451,7 +464,6 @@ async def reportmatch_command(
     blue_ids = [m.id for m in blue_team]
 
     with connect_db() as conn:
-        # Ensure ratings exist before calculating team averages.
         red_rows = [get_rating(conn, guild_id, uid, mode_value) for uid in red_ids]
         blue_rows = [get_rating(conn, guild_id, uid, mode_value) for uid in blue_ids]
         red_avg = sum(row["elo"] for row in red_rows) / len(red_rows)
@@ -462,34 +474,45 @@ async def reportmatch_command(
         blue_change = elo_delta(blue_avg, red_avg, not red_won)
 
         changes = {}
+
         for uid in red_ids:
             old = get_rating(conn, guild_id, uid, mode_value)
             new_elo = old["elo"] + red_change
             changes[str(uid)] = {
-                "old_elo": old["elo"], "new_elo": new_elo,
-                "old_wins": old["wins"], "old_losses": old["losses"],
+                "old_elo": old["elo"],
+                "new_elo": new_elo,
+                "old_wins": old["wins"],
+                "old_losses": old["losses"],
                 "old_matches": old["matches"],
                 "delta": red_change,
             }
             conn.execute(
                 """UPDATE ratings SET elo=?, wins=wins+?, losses=losses+?, matches=matches+1
                    WHERE guild_id=? AND user_id=? AND mode=?""",
-                (new_elo, 1 if red_won else 0, 0 if red_won else 1, guild_id, uid, mode_value),
+                (
+                    new_elo, 1 if red_won else 0, 0 if red_won else 1,
+                    guild_id, uid, mode_value,
+                ),
             )
 
         for uid in blue_ids:
             old = get_rating(conn, guild_id, uid, mode_value)
             new_elo = old["elo"] + blue_change
             changes[str(uid)] = {
-                "old_elo": old["elo"], "new_elo": new_elo,
-                "old_wins": old["wins"], "old_losses": old["losses"],
+                "old_elo": old["elo"],
+                "new_elo": new_elo,
+                "old_wins": old["wins"],
+                "old_losses": old["losses"],
                 "old_matches": old["matches"],
                 "delta": blue_change,
             }
             conn.execute(
                 """UPDATE ratings SET elo=?, wins=wins+?, losses=losses+?, matches=matches+1
                    WHERE guild_id=? AND user_id=? AND mode=?""",
-                (new_elo, 0 if red_won else 1, 1 if red_won else 0, guild_id, uid, mode_value),
+                (
+                    new_elo, 0 if red_won else 1, 1 if red_won else 0,
+                    guild_id, uid, mode_value,
+                ),
             )
 
         cursor = conn.execute(
@@ -497,7 +520,8 @@ async def reportmatch_command(
                (guild_id, mode, winner, red_team, blue_team, elo_changes, reported_by, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                guild_id, mode_value, winner.value, json.dumps(red_ids), json.dumps(blue_ids),
+                guild_id, mode_value, winner.value,
+                json.dumps(red_ids), json.dumps(blue_ids),
                 json.dumps(changes), interaction.user.id,
                 datetime.now(timezone.utc).isoformat(),
             ),
@@ -509,7 +533,7 @@ async def reportmatch_command(
         sign = "+" if delta >= 0 else ""
         return f"{names} ({sign}{delta} ELO each)"
 
-    await interaction.response.send_message(
+    message = (
         f"꒰ა・**MATCH RECORDED — {mode_value}**\n"
         f"Match ID: `#{match_id}`\n"
         f"Winner: **{'Red Team' if red_won else 'Blue Team'}**\n\n"
@@ -517,6 +541,13 @@ async def reportmatch_command(
         f"**Blue:** {team_text(blue_team, blue_change)}\n\n"
         f"Reported by {interaction.user.mention}."
     )
+
+    if screenshot:
+        embed = discord.Embed(description=message)
+        embed.set_image(url=screenshot.url)
+        await interaction.response.send_message(embed=embed)
+    else:
+        await interaction.response.send_message(message)
 
 
 @bot.tree.command(name="matchhistory", description="Show the most recent recorded matches.")
