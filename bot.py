@@ -551,7 +551,7 @@ async def adjust_elo(
     )
 
 
-]
+
 
 
 @bot.tree.command(name="addelo", description="Staff: add ELO to a player.")
