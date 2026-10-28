@@ -86,6 +86,11 @@ def initialize_db():
         """)
 
 
+
+
+
+
+
 def ensure_rating(conn, guild_id: int, user_id: int, mode: str):
     conn.execute(
         """INSERT OR IGNORE INTO ratings
