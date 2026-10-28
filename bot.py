@@ -538,6 +538,7 @@ async def adjust_elo(
             ),
         )
 
+    
     sign = "+" if actual_change >= 0 else ""
     await interaction.response.send_message(
         f"꒰ა・ELO ADJUSTED — {mode.value}\n"
@@ -550,7 +551,12 @@ async def adjust_elo(
     )
 
 
-
+@bot.tree.command(name="addelo", description="Staff: add ELO to a player.")
+@app_commands.describe(
+    player="Player receiving ELO",
+    mode="Tournament mode",
+    amount="Amount of ELO to add",
+    reason="Reason for the adjustment",
 )
 @app_commands.choices(mode=ELO_MODE_CHOICES)
 async def addelo_command(
@@ -565,19 +571,6 @@ async def addelo_command(
     )
 
 
-
-)
-@app_commands.choices(mode=ELO_MODE_CHOICES)
-async def removeelo_command(
-    interaction: discord.Interaction,
-    player: discord.Member,
-    mode: app_commands.Choice[str],
-    amount: app_commands.Range[int, 1, 10000],
-    reason: str,
-):
-    await adjust_elo(
-        interaction, player, mode, amount, reason, -1
-    )
 
 ELO_MODE_CHOICES = [
     app_commands.Choice(name="1v1", value="1v1"),
