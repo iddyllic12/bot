@@ -203,6 +203,7 @@ async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
 
+
 @bot.tree.command(name="elo", description="Check a player's ELO for a tournament mode.")
 @app_commands.describe(player="Player to check (leave blank to check yourself)", mode="Tournament mode")
 @app_commands.choices(mode=[
@@ -216,11 +217,15 @@ async def elo_command(
     player: Optional[discord.Member] = None,
 ):
     if not interaction.guild:
-        await interaction.response.send_message("Use this command in your server.", ephemeral=True)
+        await interaction.response.send_message(
+            "Use this command in your server.",
+            ephemeral=True,
+        )
         return
 
     target = player or interaction.user
-          with connect_db() as conn:
+
+    with connect_db() as conn:
         row = get_rating(conn, interaction.guild.id, target.id, mode.value)
         platform_row = conn.execute(
             """
