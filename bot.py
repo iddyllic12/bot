@@ -66,6 +66,21 @@ def initialize_db():
             )
         """)
 
+   conn.execute("""
+            CREATE TABLE IF NOT EXISTS elo_adjustments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                mode TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                old_elo INTEGER NOT NULL,
+                new_elo INTEGER NOT NULL,
+                reason TEXT NOT NULL,
+                adjusted_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
 
 def ensure_rating(conn, guild_id: int, user_id: int, mode: str):
     conn.execute(
@@ -442,8 +457,130 @@ async def undomatch_command(interaction: discord.Interaction, match_id: int):
     )
 
 
+ELO_MODE_CHOICES = [
+    app_commands.Choice(name="1v1", value="1v1"),
+    app_commands.Choice(name="2v2", value="2v2"),
+    app_commands.Choice(name="3v3", value="3v3"),
+]
+
+
+async def adjust_elo(
+    interaction: discord.Interaction,
+    player: discord.Member,
+    mode: app_commands.Choice[str],
+    amount: app_commands.Range[int, 1, 10000],
+    reason: str,
+    direction: int,
+):
+    if not await staff_check(interaction):
+        return
+
+    if not interaction.guild:
+        await interaction.response.send_message(
+            "Use this command in your server.", ephemeral=True
+        )
+        return
+
+    reason = reason.strip()
+    if not reason or len(reason) > 300:
+        await interaction.response.send_message(
+            "Enter a reason between 1 and 300 characters.",
+            ephemeral=True,
+        )
+        return
+
+    if player.bot:
+        await interaction.response.send_message(
+            "You cannot adjust ELO for a bot account.", ephemeral=True
+        )
+        return
+
+    with connect_db() as conn:
+        row = get_rating(
+            conn, interaction.guild.id, player.id, mode.value
+        )
+        old_elo = row["elo"]
+        new_elo = max(0, old_elo + direction * amount)
+        actual_change = new_elo - old_elo
+
+        conn.execute(
+            """UPDATE ratings SET elo=?
+               WHERE guild_id=? AND user_id=? AND mode=?""",
+            (new_elo, interaction.guild.id, player.id, mode.value),
+        )
+
+        conn.execute(
+            """INSERT INTO elo_adjustments
+               (guild_id, user_id, mode, amount, old_elo, new_elo,
+                reason, adjusted_by, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                interaction.guild.id,
+                player.id,
+                mode.value,
+                actual_change,
+                old_elo,
+                new_elo,
+                reason,
+                interaction.user.id,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+    sign = "+" if actual_change >= 0 else ""
+    await interaction.response.send_message(
+        f"꒰ა・ELO ADJUSTED — {mode.value}\n"
+        f"Player: {player.mention}\n"
+        f"Previous ELO: {old_elo}\n"
+        f"Change: {sign}{actual_change}\n"
+        f"New ELO: {new_elo}\n"
+        f"Reason: {reason}\n"
+        f"Adjusted by: {interaction.user.mention}"
+    )
+
+
+@bot.tree.command(name="addelo", description="Staff: add ELO to a player.")
+@app_commands.describe(
+    player="Player receiving ELO",
+    mode="Tournament mode",
+    amount="Amount of ELO to add",
+    reason="Reason for the adjustment",
+)
+@app_commands.choices(mode=ELO_MODE_CHOICES)
+async def addelo_command(
+    interaction: discord.Interaction,
+    player: discord.Member,
+    mode: app_commands.Choice[str],
+    amount: app_commands.Range[int, 1, 10000],
+    reason: str,
+):
+    await adjust_elo(
+        interaction, player, mode, amount, reason, 1
+    )
+
+
+@bot.tree.command(name="removeelo", description="Staff: remove ELO from a player.")
+@app_commands.describe(
+    player="Player losing ELO",
+    mode="Tournament mode",
+    amount="Amount of ELO to remove",
+    reason="Reason for the adjustment",
+)
+@app_commands.choices(mode=ELO_MODE_CHOICES)
+async def removeelo_command(
+    interaction: discord.Interaction,
+    player: discord.Member,
+    mode: app_commands.Choice[str],
+    amount: app_commands.Range[int, 1, 10000],
+    reason: str,
+):
+    await adjust_elo(
+        interaction, player, mode, amount, reason, -1
+    )
+
 @bot.tree.command(name="elohelp", description="Show how the Arsenal Angels ELO bot works.")
-async def elohelp_command(interaction: discord.Interaction):
+async def elohelp_command(        "• `/addelo` — staff-only manual ELO increase\n"
+        "• `/removeelo` — staff-only manual ELO decrease\n"):
     await interaction.response.send_message(
         "꒰ა・**ARSENAL ANGELS ELO COMMANDS**\n"
         "• `/elo` — check your rating or another player's rating\n"
