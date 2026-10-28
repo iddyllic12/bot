@@ -220,12 +220,22 @@ async def elo_command(
         return
 
     target = player or interaction.user
-    with connect_db() as conn:
+        with connect_db() as conn:
         row = get_rating(conn, interaction.guild.id, target.id, mode.value)
+        platform_row = conn.execute(
+            """
+            SELECT platform FROM player_platforms
+            WHERE guild_id=? AND user_id=?
+            """,
+            (interaction.guild.id, target.id),
+        ).fetchone()
+
+    platform_text = platform_row["platform"] if platform_row else "Not set"
 
     await interaction.response.send_message(
         f"꒰ა・**{mode.value} ELO**\n"
         f"Player: {target.mention}\n"
+        f"Platform: **{platform_text}**\n"
         f"Rating: **{row['elo']}**\n"
         f"Record: **{row['wins']}W - {row['losses']}L** "
         f"({row['matches']} matches)"
